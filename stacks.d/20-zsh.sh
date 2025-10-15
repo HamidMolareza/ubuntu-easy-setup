@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
+
 set -euo pipefail
+
 echo "[zsh] Installing zsh + oh-my-zsh"
 sudo apt-get install -y zsh
 chsh -s "$(command -v zsh)" "$USER" || true

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
+
 set -euo pipefail
+
 echo "[docker] Installing Docker Engine (official repo)"
 sudo apt-get remove -y docker docker-engine docker.io containerd runc || true
 sudo install -m 0755 -d /etc/apt/keyrings
