@@ -1,10 +1,12 @@
 # --- Core / package mgmt ---
 software-properties-common
+gnome-shell-extensions
 snapd
 curl
 git
 python3-pip
 xclip
+flatpak
 
 # --- CLI essentials ---
 htop
@@ -40,7 +42,9 @@ vlc
 gimp
 deja-dup
 
+nodejs
+npm
+
 # timeshift              # system snapshots (in Ubuntu repos)
 # aria2                  # fast CLI downloader (package name is aria2)
-# openjdk-11-jdk         # already noted above
-# git-flow               # already noted above
+# psensor
