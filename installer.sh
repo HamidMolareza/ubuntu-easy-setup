@@ -3,6 +3,7 @@
 # Ubuntu Bootstrap Installer (fail-safe / continue-on-error)
 # - Idempotent where reasonable
 # - Reads optional scripts from stacks.d/ (runs only existing + executable)
+# - Prompts before steps unless -y/--yes is used
 # - Logs everything to ~/.bootstrap-logs/<timestamp>.log
 ###############################################################################
 
@@ -18,6 +19,105 @@ mkdir -p "$LOG_DIR"
 LOG_FILE="${LOG_DIR}/$(date +%F_%H-%M-%S).log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 echo "==> ${SCRIPT_NAME} starting at $(date)"
+
+#=========================== argument parsing =================================#
+ASSUME_YES=0
+ASK_EACH_ITEM=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -y|--yes) ASSUME_YES=1; shift ;;
+    --ask-each-item) ASK_EACH_ITEM=1; shift ;;
+    -h|--help)
+      cat <<'USAGE'
+Usage: ./installer.sh [options]
+
+Options:
+  -y, --yes           Run non-interactively; assume "yes" to all prompts.
+  --ask-each-item     Ask per package/app and per stacks.d script. Default: ask per section only.
+  -h, --help          Show this help and exit.
+USAGE
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      exit 2
+      ;;
+  esac
+done
+
+#============================ prompting helpers ===============================#
+# Read from TTY even when stdout is piped to log
+read_from_tty() {
+  if [[ -t 0 ]]; then
+    read -r "$@"
+  else
+    if exec 3</dev/tty 2>/dev/null; then
+      read -r -u 3 "$@"
+      exec 3<&-
+    else
+      REPLY=""
+    fi
+  fi
+}
+
+# Accept n, no, o as negative (plus common yes forms)
+negatives_regex='^(n|no|o)$'  # case-insensitive
+
+confirm() {
+  local prompt="${1:-Proceed?}"
+  local default_yes="${2:-1}"  # 1=yes default, 0=no default
+  local suffix="[Y/n]"
+  [[ "$default_yes" -eq 0 ]] && suffix="[y/N]"
+
+  if [[ "$ASSUME_YES" -eq 1 ]]; then
+    echo "--> (auto) ${prompt} : yes"
+    return 0
+  fi
+
+  while true; do
+    printf "%s %s " "$prompt" "$suffix"
+    read_from_tty
+    local ans="${REPLY:-}"
+    ans="${ans,,}"  # lowercase
+
+    # empty -> default
+    if [[ -z "$ans" ]]; then
+      [[ "$default_yes" -eq 1 ]] && return 0 || return 1
+    fi
+
+    if [[ "$ans" =~ $negatives_regex ]]; then
+      return 1
+    fi
+
+    if [[ "$ans" =~ ^(y|yes)$ ]]; then
+      return 0
+    fi
+
+    echo "Please answer yes or no (y/n)."
+  done
+}
+
+# attempt "Description" cmd...
+# Ask, then run as a step() if confirmed.
+attempt() {
+  local desc="$1"; shift
+  if confirm "Do you want to ${desc}?"; then
+    step "$desc" "$@"
+  else
+    warn "User skipped: ${desc}"
+  fi
+}
+
+# attempt_item respects --ask-each-item flag; otherwise runs without prompting.
+attempt_item() {
+  local desc="$1"; shift
+  if [[ "$ASK_EACH_ITEM" -eq 1 ]]; then
+    attempt "$desc" "$@"
+  else
+    step "$desc" "$@"
+  fi
+}
 
 #----------------------------- helpers: logging -------------------------------#
 declare -a __SUCCESSES=()
@@ -60,7 +160,7 @@ is_wsl() {
 add_ppa() {
   local ppa="$1"
   if ! grep -Rq "$ppa" /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null; then
-    step "Add PPA ${ppa}" sudo add-apt-repository -y "ppa:${ppa}"
+    step "add PPA ${ppa}" sudo add-apt-repository -y "ppa:${ppa}"
   else
     ok "PPA ${ppa} already present, skipping"
   fi
@@ -68,7 +168,7 @@ add_ppa() {
 
 require_sudo() {
   if [[ "$(id -u)" -ne 0 ]]; then
-    step "Initialize sudo credentials" sudo -v
+    step "initialize sudo credentials" sudo -v
     # Keep-alive sudo timestamp in background (best-effort)
     ( while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done ) 2>/dev/null &
   fi
@@ -111,99 +211,119 @@ fi
 require_sudo
 
 #----------------------------- APT base ---------------------------------------#
-step "Refresh apt index" sudo apt-get update -y
-step "Upgrade packages (dist-upgrade)" sudo apt-get dist-upgrade -y
+attempt "refresh apt index" sudo apt-get update -y
+attempt "upgrade packages (dist-upgrade)" sudo apt-get dist-upgrade -y
 
-step "Install base tooling" \
+attempt "install base tooling" \
   sudo apt-get install -y build-essential curl wget git ca-certificates gnupg lsb-release apt-transport-https software-properties-common ufw unzip zip jq
 
 #----------------------------- timezone & locale ------------------------------#
-step "Set timezone to ${TIMEZONE}" sudo timedatectl set-timezone "$TIMEZONE"
+attempt "set timezone to ${TIMEZONE}" sudo timedatectl set-timezone "$TIMEZONE"
 
-step "Ensure locale ${LOCALE}" bash -c '
+attempt "ensure locale ${LOCALE}" bash -c '
   set -euo pipefail
   if ! locale -a | grep -q "^'"${LOCALE}"'$"; then sudo locale-gen "'"${LOCALE}"'"; fi
   sudo update-locale LANG="'"${LOCALE}"'"
 '
 
 #----------------------------- unattended upgrades ----------------------------#
-step "Enable unattended-upgrades" bash -euo pipefail -c '
+attempt "enable unattended-upgrades" bash -euo pipefail -c '
   sudo apt-get install -y unattended-upgrades
   sudo dpkg-reconfigure -f noninteractive unattended-upgrades
 '
 
 #----------------------------- firewall ---------------------------------------#
-step "Configure UFW (allow OpenSSH + enable)" bash -c '
+attempt "configure UFW (allow OpenSSH + enable)" bash -c '
   sudo ufw allow OpenSSH || true
   sudo ufw --force enable
 '
 
 #----------------------------- apt packages.txt (per item) --------------------#
 if [[ -f "$APT_LIST" ]]; then
-  echo "==> Installing apt packages from ${APT_LIST}"
-  while IFS= read -r pkg; do
-    [[ -z "$pkg" || "$pkg" =~ ^\s*# ]] && continue
-    step "apt install ${pkg}" sudo apt-get install -y "$pkg"
-  done < <(grep -Ev '^\s*#|^\s*$' "$APT_LIST")
+  if confirm "Process APT packages from ${APT_LIST}?"; then
+    echo "==> Installing apt packages from ${APT_LIST}"
+    while IFS= read -r pkg; do
+      [[ -z "$pkg" || "$pkg" =~ ^\s*# ]] && continue
+      attempt_item "apt install ${pkg}" sudo apt-get install -y "$pkg"
+    done < <(grep -Ev '^\s*#|^\s*$' "$APT_LIST")
+  else
+    warn "User skipped APT packages section"
+  fi
 else
   warn "No ${APT_LIST} found. Skipping apt bulk install."
 fi
 
 #----------------------------- snaps.txt (per item) ---------------------------#
 if have snap && [[ -f "$SNAPS_LIST" ]]; then
-  echo "==> Installing snaps from ${SNAPS_LIST}"
-  while IFS= read -r line; do
-    [[ -z "$line" || "$line" =~ ^\s*# ]] && continue
-    name="$(awk '{print $1}' <<<"$line")"
-    flags="$(awk '{$1=""; sub("^ ", ""); print}' <<<"$line")"
-    if snap list | awk '{print $1}' | grep -qx "$name"; then
-      ok "snap ${name} already installed, skipping"
-    else
-      step "snap install ${name} ${flags}" sudo snap install $name $flags
-    fi
-  done < "$SNAPS_LIST"
+  if confirm "Process snaps from ${SNAPS_LIST}?"; then
+    echo "==> Installing snaps from ${SNAPS_LIST}"
+    while IFS= read -r line; do
+      [[ -z "$line" || "$line" =~ ^\s*# ]] && continue
+      name="$(awk '{print $1}' <<<"$line")"
+      flags="$(awk '{$1=""; sub("^ ", ""); print}' <<<"$line")"
+      if snap list | awk '{print $1}' | grep -qx "$name"; then
+        ok "snap ${name} already installed, skipping"
+      else
+        attempt_item "snap install ${name} ${flags}" sudo snap install $name $flags
+      fi
+    done < "$SNAPS_LIST"
+  else
+    warn "User skipped snaps section"
+  fi
 elif [[ -f "$SNAPS_LIST" ]]; then
   warn "snapd not available; cannot process ${SNAPS_LIST}"
 fi
 
 #----------------------------- flatpaks.txt (per item) ------------------------#
 if [[ -f "$FLATPAKS_LIST" ]]; then
-  if ! have flatpak; then
-    step "Install flatpak" sudo apt-get install -y flatpak
-    if have gnome-shell; then
-      step "Install gnome-software-plugin-flatpak" sudo apt-get install -y gnome-software-plugin-flatpak
+  if confirm "Process flatpaks from ${FLATPAKS_LIST}?"; then
+    if ! have flatpak; then
+      attempt "install flatpak" sudo apt-get install -y flatpak
+      if have gnome-shell; then
+        attempt "install gnome-software-plugin-flatpak" sudo apt-get install -y gnome-software-plugin-flatpak
+      fi
+      attempt "add Flathub remote" flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
     fi
-    step "Add Flathub remote" flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+    echo "==> Installing flatpaks"
+    while IFS= read -r app; do
+      [[ -z "$app" || "$app" =~ ^\s*# ]] && continue
+      if flatpak list | awk '{print $1}' | grep -qx "$app"; then
+        ok "flatpak ${app} already installed"
+      else
+        attempt_item "flatpak install ${app}" flatpak install -y flathub "$app"
+      fi
+    done < "$FLATPAKS_LIST"
+  else
+    warn "User skipped flatpaks section"
   fi
-  echo "==> Installing flatpaks"
-  while IFS= read -r app; do
-    [[ -z "$app" || "$app" =~ ^\s*# ]] && continue
-    if flatpak list | awk '{print $1}' | grep -qx "$app"; then
-      ok "flatpak ${app} already installed"
-    else
-      step "flatpak install ${app}" flatpak install -y flathub "$app"
-    fi
-  done < "$FLATPAKS_LIST"
 fi
 
 #----------------------------- GNOME tweaks (best-effort) ---------------------#
 if have gsettings; then
-  step "Apply GNOME preference: show seconds on clock" gsettings set org.gnome.desktop.interface clock-show-seconds true
-  step "Enable touchpad tap-to-click" gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click true
+  if confirm "Apply GNOME preferences (clock seconds, tap-to-click)?"; then
+    step "apply GNOME preference: show seconds on clock" gsettings set org.gnome.desktop.interface clock-show-seconds true
+    step "enable touchpad tap-to-click" gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click true
+  else
+    warn "User skipped GNOME tweaks"
+  fi
 fi
 
 #----------------------------- Git & SSH --------------------------------------#
 if [[ -n "$GIT_NAME" && -n "$GIT_EMAIL" ]]; then
-  step "Configure git user.name" git config --global user.name "$GIT_NAME"
-  step "Configure git user.email" git config --global user.email "$GIT_EMAIL"
-  step "Set git default branch=main" git config --global init.defaultBranch main
-  step "Set git pull.rebase=false" git config --global pull.rebase false
+  if confirm "Configure global Git identity for ${GIT_NAME} <${GIT_EMAIL}>?"; then
+    step "configure git user.name" git config --global user.name "$GIT_NAME"
+    step "configure git user.email" git config --global user.email "$GIT_EMAIL"
+    step "set git default branch=main" git config --global init.defaultBranch main
+    step "set git pull.rebase=false" git config --global pull.rebase false
+  else
+    warn "User skipped Git identity configuration"
+  fi
 else
   warn "GIT_NAME/GIT_EMAIL not set; skipping global git identity"
 fi
 
 if [[ ! -f "$HOME/.ssh/id_${SSH_KEY_TYPE}.pub" ]]; then
-  step "Generate SSH key (${SSH_KEY_TYPE})" bash -c '
+  attempt "generate SSH key (${SSH_KEY_TYPE})" bash -c '
     set -euo pipefail
     mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
     ssh-keygen -t "'"$SSH_KEY_TYPE"'" -C "'"${GIT_EMAIL:-bootstrap}"'" -f "$HOME/.ssh/id_'"$SSH_KEY_TYPE"'" -N ""
@@ -218,11 +338,15 @@ fi
 
 #----------------------------- Dotfiles (optional) ----------------------------#
 if [[ -n "$DOTFILES_REPO" && ! -d "$HOME/.dotfiles" ]]; then
-  step "Clone dotfiles from ${DOTFILES_REPO}" git clone --recursive "$DOTFILES_REPO" "$HOME/.dotfiles"
-  if [[ -n "$DOTFILES_BOOTSTRAP" && -x "$HOME/.dotfiles/${DOTFILES_BOOTSTRAP}" ]]; then
-    step "Run dotfiles bootstrap ${DOTFILES_BOOTSTRAP}" bash -c 'cd "$HOME/.dotfiles" && "./'"$DOTFILES_BOOTSTRAP"'"'
-  elif [[ -n "$DOTFILES_BOOTSTRAP" ]]; then
-    warn "Dotfiles bootstrap '$DOTFILES_BOOTSTRAP' not executable or missing; skipping"
+  if confirm "Clone dotfiles from ${DOTFILES_REPO}?"; then
+    step "clone dotfiles from ${DOTFILES_REPO}" git clone --recursive "$DOTFILES_REPO" "$HOME/.dotfiles"
+    if [[ -n "$DOTFILES_BOOTSTRAP" && -x "$HOME/.dotfiles/${DOTFILES_BOOTSTRAP}" ]]; then
+      attempt "run dotfiles bootstrap ${DOTFILES_BOOTSTRAP}" bash -c 'cd "$HOME/.dotfiles" && "./'"$DOTFILES_BOOTSTRAP"'"'
+    elif [[ -n "$DOTFILES_BOOTSTRAP" ]]; then
+      warn "Dotfiles bootstrap '$DOTFILES_BOOTSTRAP' not executable or missing; skipping"
+    fi
+  else
+    warn "User skipped dotfiles clone"
   fi
 elif [[ -n "$DOTFILES_REPO" ]]; then
   ok "Dotfiles directory already present; skipping clone"
@@ -230,12 +354,17 @@ fi
 
 #----------------------------- WSL tweaks -------------------------------------#
 if is_wsl; then
-  step "WSL tweak: switch iptables to legacy" sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
+  attempt "apply WSL tweak: switch iptables to legacy" sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
 fi
 
 #----------------------------- stacks.d runner --------------------------------#
 run_custom_scripts() {
   local dir="$1"
+  if ! confirm "Run custom stack scripts in ${dir}?"; then
+    warn "User skipped stacks.d"
+    return
+  fi
+
   echo "==> Running custom stack scripts in ${dir}"
 
   if [[ ! -d "$dir" ]]; then
@@ -254,7 +383,11 @@ run_custom_scripts() {
   # Sorted lexicographically: numeric prefixes control order
   for f in "${scripts[@]}"; do
     if [[ -f "$f" && -x "$f" ]]; then
-      step "Run $(basename "$f")" "$f"
+      if [[ "$ASK_EACH_ITEM" -eq 1 ]]; then
+        attempt "run $(basename "$f")" "$f"
+      else
+        step "run $(basename "$f")" "$f"
+      fi
     else
       warn "Skipping $(basename "$f") — file missing or not executable."
     fi
@@ -264,8 +397,8 @@ run_custom_scripts() {
 run_custom_scripts "$TASKS_DIR"
 
 #----------------------------- cleanup ----------------------------------------#
-step "APT autoremove" sudo apt-get autoremove -y
-step "APT clean" sudo apt-get clean
+attempt "APT autoremove" sudo apt-get autoremove -y
+attempt "APT clean" sudo apt-get clean
 
 #----------------------------- summary ----------------------------------------#
 echo
