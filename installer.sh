@@ -89,7 +89,7 @@ export DEBIAN_FRONTEND=noninteractive
 [[ -f "$CONFIG_FILE" ]] && source "$CONFIG_FILE"
 
 # Defaults if not in config.env
-TIMEZONE="${TIMEZONE:-Europe/Istanbul}"
+TIMEZONE="${TIMEZONE:-Asia/Tehran}"
 LOCALE="${LOCALE:-en_US.UTF-8}"
 GIT_NAME="${GIT_NAME:-}"
 GIT_EMAIL="${GIT_EMAIL:-}"
