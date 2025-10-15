@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# stacks.d/10-example.sh
+
 set -euo pipefail
 
 log()  { echo "$*"; }
@@ -8,7 +8,7 @@ warn() { echo "[WARN] $*" >&2; }
 # (Optional) use values from config.env if present
 : "${MY_OPTIONAL_VAR:=default_value}"
 
-# Detect Ubuntu version if you need it
+# (Optional) Detect Ubuntu version if you need it
 UBU_CODENAME="$(. /etc/os-release && echo "${UBUNTU_CODENAME}")"
 
 # Guard: skip work if already done
