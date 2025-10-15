@@ -13,9 +13,9 @@ htop
 fd-find
 ripgrep
 bat
-tmux
+#tmux
 fzf
-neovim
+#neovim
 trash-cli
 
 # --- Networking ---
@@ -38,7 +38,6 @@ variety
 
 # --- Media & utilities ---
 ffmpeg
-vlc
 gimp
 deja-dup
 

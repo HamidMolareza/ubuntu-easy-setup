@@ -1,9 +1,9 @@
 # Browsers & media
-chromium
+#chromium
 vlc
 
 # Productivity & dev tools
 postman
 joplin-desktop
 telegram-desktop
-stretchly
+#stretchly
