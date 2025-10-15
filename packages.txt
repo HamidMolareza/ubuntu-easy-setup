@@ -21,11 +21,11 @@ net-tools
 dnsutils
 
 # --- Dev toolchain ---
-gcc
-g++
-make
-cmake
-pkg-config
+#gcc
+#g++
+#make
+#cmake
+#pkg-config
 # openjdk-11-jdk           # uncomment if you need Java 11
 # git-flow                 # optional git helpers
 
@@ -39,3 +39,8 @@ ffmpeg
 vlc
 gimp
 deja-dup
+
+# timeshift              # system snapshots (in Ubuntu repos)
+# aria2                  # fast CLI downloader (package name is aria2)
+# openjdk-11-jdk         # already noted above
+# git-flow               # already noted above

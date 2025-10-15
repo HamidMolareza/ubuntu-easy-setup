@@ -1,3 +1,9 @@
-# name [flags]
+# Browsers & media
+chromium
+vlc
 
-code --classic
+# Productivity & dev tools
+postman
+joplin-desktop
+telegram-desktop
+stretchly
