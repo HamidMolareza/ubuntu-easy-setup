@@ -1,4 +1,12 @@
-# CLI essentials
+# --- Core / package mgmt ---
+software-properties-common
+snapd
+curl
+git
+python3-pip
+xclip
+
+# --- CLI essentials ---
 htop
 fd-find
 ripgrep
@@ -6,17 +14,28 @@ bat
 tmux
 fzf
 neovim
+trash-cli
 
-# Networking
+# --- Networking ---
 net-tools
 dnsutils
 
-# Dev basics
+# --- Dev toolchain ---
 gcc
 g++
 make
 cmake
 pkg-config
+# openjdk-11-jdk           # uncomment if you need Java 11
+# git-flow                 # optional git helpers
 
-# Desktop
+# --- Desktop / GNOME ---
 gnome-tweaks
+dconf-editor
+variety
+
+# --- Media & utilities ---
+ffmpeg
+vlc
+gimp
+deja-dup
