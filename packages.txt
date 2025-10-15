@@ -1,0 +1,22 @@
+# CLI essentials
+htop
+fd-find
+ripgrep
+bat
+tmux
+fzf
+neovim
+
+# Networking
+net-tools
+dnsutils
+
+# Dev basics
+gcc
+g++
+make
+cmake
+pkg-config
+
+# Desktop
+gnome-tweaks

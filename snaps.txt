@@ -1,0 +1,3 @@
+# name [flags]
+code --classic
+spotify
