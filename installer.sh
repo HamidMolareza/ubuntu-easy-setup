@@ -359,10 +359,11 @@ fi
 if [[ -n "$DOTFILES_REPO" && ! -d "$HOME/.dotfiles" ]]; then
   if confirm "Clone dotfiles from ${DOTFILES_REPO}?"; then
     step "clone dotfiles from ${DOTFILES_REPO}" git clone --recursive "$DOTFILES_REPO" "$HOME/.dotfiles"
-    if [[ -n "$DOTFILES_BOOTSTRAP" && -x "$HOME/.dotfiles/${DOTFILES_BOOTSTRAP}" ]]; then
+    if [[ -n "$DOTFILES_BOOTSTRAP" && -f "$HOME/.dotfiles/${DOTFILES_BOOTSTRAP}" ]]; then
+      step "make dotfiles bootstrap ${DOTFILES_BOOTSTRAP} executable" chmod +x "$HOME/.dotfiles/${DOTFILES_BOOTSTRAP}"
       attempt "run dotfiles bootstrap ${DOTFILES_BOOTSTRAP}" bash -c 'cd "$HOME/.dotfiles" && "./'"$DOTFILES_BOOTSTRAP"'"'
     elif [[ -n "$DOTFILES_BOOTSTRAP" ]]; then
-      warn "Dotfiles bootstrap '$DOTFILES_BOOTSTRAP' not executable or missing; skipping"
+      warn "Dotfiles bootstrap '$DOTFILES_BOOTSTRAP' not found; skipping"
     fi
   else
     warn "User skipped dotfiles clone"
