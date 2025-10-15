@@ -298,15 +298,34 @@ if [[ -f "$FLATPAKS_LIST" ]]; then
   fi
 fi
 
-#----------------------------- GNOME tweaks (best-effort) ---------------------#
-if have gsettings; then
-  if confirm "Apply GNOME preferences (clock seconds, tap-to-click)?"; then
-    step "apply GNOME preference: show seconds on clock" gsettings set org.gnome.desktop.interface clock-show-seconds true
-    step "enable touchpad tap-to-click" gsettings set org.gnome.desktop.peripherals.touchpad tap-to-click true
-  else
-    warn "User skipped GNOME tweaks"
+#----------------------------- GNOME settings via dconf -----------------------#
+GSETTINGS_FILE="${ROOT_DIR}/gnome.dconf"
+
+if [[ -f "$GSETTINGS_FILE" ]]; then
+  # ensure we have the CLI
+  if ! have dconf; then
+    attempt "install dconf CLI" sudo apt-get install -y dconf-cli
   fi
+
+  if have dconf; then
+    if confirm "Import GNOME settings from ${GSETTINGS_FILE}?"; then
+      backup_file="${LOG_DIR}/dconf-backup-$(date +%F_%H-%M-%S).dconf"
+      step "backup current GNOME settings to ${backup_file}" \
+        bash -c 'dconf dump /org/gnome/ > "'"$backup_file"'"'
+
+      # Load file relative to /org/gnome/ (so [desktop/interface] -> /org/gnome/desktop/interface)
+      step "apply GNOME settings from ${GSETTINGS_FILE}" \
+        bash -c 'dconf load /org/gnome/ < "'"$GSETTINGS_FILE"'"'
+    else
+      warn "User skipped GNOME settings import"
+    fi
+  else
+    warn "dconf command not available; cannot import ${GSETTINGS_FILE}"
+  fi
+else
+  ok "No ${GSETTINGS_FILE} found; skipping GNOME settings import"
 fi
+
 
 #----------------------------- Git & SSH --------------------------------------#
 if [[ -n "$GIT_NAME" && -n "$GIT_EMAIL" ]]; then
