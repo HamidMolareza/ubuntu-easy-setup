@@ -212,7 +212,7 @@ stacks.d/
 ├── 160-vscode-extensions-install.sh
 ├── 170-safebox.sh
 ├── 180-move-files-to-private.sh
-├── 190-install-zsh.sh
+├── 190-zsh.sh
 ├── 200-docker.sh
 └── template.sh.sample   # ignored by runner
 ```
