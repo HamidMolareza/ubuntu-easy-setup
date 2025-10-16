@@ -393,23 +393,30 @@ run_custom_scripts() {
   fi
 
   shopt -s nullglob
-  local scripts=( "$dir"/*.sh )
+  local scripts=()
+  for f in "$dir"/*; do
+    [[ "$f" == *.sample ]] && continue
+    scripts+=( "$f" )
+  done
   if ((${#scripts[@]} == 0)); then
-    warn "No *.sh scripts found in ${dir}. Skipping."
+    warn "No scripts found in ${dir}. Skipping."
     shopt -u nullglob
     return
   fi
 
   # Sorted lexicographically: numeric prefixes control order
   for f in "${scripts[@]}"; do
-    if [[ -f "$f" && -x "$f" ]]; then
+    if [[ -f "$f" ]]; then
+      if [[ ! -x "$f" ]]; then
+        step "make $(basename "$f") executable" chmod +x "$f"
+      fi
       if [[ "$ASK_EACH_ITEM" -eq 1 ]]; then
         attempt "run $(basename "$f")" "$f"
       else
         step "run $(basename "$f")" "$f"
       fi
     else
-      warn "Skipping $(basename "$f") — file missing or not executable."
+      warn "Skipping $(basename "$f") — file missing."
     fi
   done
   shopt -u nullglob
