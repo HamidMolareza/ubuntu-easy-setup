@@ -17,6 +17,7 @@ bat
 fzf
 #neovim
 trash-cli
+tree
 
 # --- Networking ---
 net-tools
