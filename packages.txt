@@ -41,6 +41,7 @@ variety
 ffmpeg
 gimp
 deja-dup
+vlc
 
 nodejs
 npm

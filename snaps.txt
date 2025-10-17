@@ -1,6 +1,5 @@
 # Browsers & media
 #chromium
-vlc
 
 # Productivity & dev tools
 postman
