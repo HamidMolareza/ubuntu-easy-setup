@@ -65,6 +65,9 @@ chmod +x installer.sh
 # Non-interactive (assume "yes" everywhere)
 ./installer.sh -y
 
+# Dry-run (show what would be done; no changes)
+./installer.sh -n
+
 # Prompt for each package/app and each stacks.d script
 ./installer.sh --ask-each-item
 
@@ -86,6 +89,7 @@ chmod +x installer.sh
 
    * `-y, --yes` – non-interactive mode
    * `--ask-each-item` – ask for each APT/Snap/Flatpak item and each `stacks.d` script
+   * `-n, --dry-run` – do not make changes; print what would be done
    * `-h, --help` – usage and exit
 
 3. **Environment & sanity**

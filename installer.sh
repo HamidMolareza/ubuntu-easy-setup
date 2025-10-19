@@ -23,6 +23,7 @@ echo "==> ${SCRIPT_NAME} starting at $(date)"
 #=========================== argument parsing =================================#
 ASSUME_YES=0
 ASK_EACH_ITEM=0
+DRY_RUN=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -34,10 +35,15 @@ Usage: ./installer.sh [options]
 
 Options:
   -y, --yes           Run non-interactively; assume "yes" to all prompts.
+  -n, --dry-run       Show what would happen, but do not change the system (implies --yes).
   --ask-each-item     Ask per package/app and per stacks.d script. Default: ask per section only.
   -h, --help          Show this help and exit.
 USAGE
       exit 0
+      ;;
+    -n|--dry-run)
+      DRY_RUN=1
+      shift
       ;;
     *)
       echo "Unknown option: $1"
@@ -45,6 +51,9 @@ USAGE
       ;;
   esac
 done
+
+# Dry-run implies --yes (auto-confirm prompts)
+[[ "$DRY_RUN" -eq 1 ]] && ASSUME_YES=1
 
 #============================ prompting helpers ===============================#
 # Read from TTY even when stdout is piped to log
@@ -122,6 +131,7 @@ attempt_item() {
 #----------------------------- helpers: logging -------------------------------#
 declare -a __SUCCESSES=()
 declare -a __FAILS=()
+declare -a __DRYRUNS=()
 
 ok()   { echo "--> $*"; }
 warn() { echo "!!  $*"; }
@@ -130,6 +140,14 @@ warn() { echo "!!  $*"; }
 step() {
   local desc="$1"; shift
   ok "$desc"
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    local cmd=""
+    printf -v cmd '%q ' "$@"
+    cmd="${cmd% }"
+    echo "    [DRY-RUN] would run: $cmd"
+    __DRYRUNS+=("$desc")
+    return 0
+  fi
   if "$@"; then
     __SUCCESSES+=("$desc")
     echo "    ✓ done"
@@ -167,6 +185,10 @@ add_ppa() {
 }
 
 require_sudo() {
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    ok "dry-run: skipping sudo credential initialization/keepalive"
+    return
+  fi
   if [[ "$(id -u)" -ne 0 ]]; then
     step "initialize sudo credentials" sudo -v
     # Keep-alive sudo timestamp in background (best-effort)
@@ -453,11 +475,17 @@ attempt "APT clean" sudo apt-get clean
 #----------------------------- summary ----------------------------------------#
 echo
 echo "================ SUMMARY ================"
-echo "Successful steps: ${#__SUCCESSES[@]}"
-for s in "${__SUCCESSES[@]}"; do echo "  ✓ $s"; done
-echo
-echo "Failed steps: ${#__FAILS[@]}"
-for f in "${__FAILS[@]}"; do echo "  ✗ $f"; done
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  echo "DRY-RUN mode: no commands were executed."
+  echo "Planned steps (would run): ${#__DRYRUNS[@]}"
+  for s in "${__DRYRUNS[@]}"; do echo "  → $s"; done
+else
+  echo "Successful steps: ${#__SUCCESSES[@]}"
+  for s in "${__SUCCESSES[@]}"; do echo "  ✓ $s"; done
+  echo
+  echo "Failed steps: ${#__FAILS[@]}"
+  for f in "${__FAILS[@]}"; do echo "  ✗ $f"; done
+fi
 echo "========================================="
 echo
 echo "==> Done at $(date). Log saved to: ${LOG_FILE}"
