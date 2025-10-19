@@ -8,6 +8,8 @@ Fail-safe, **continue-on-error** bootstrap for Ubuntu. It installs base tooling,
 ├── flatpaks.txt
 ├── gnome.dconf
 ├── installer.sh
+├── offline-packages/
+│   └── README.md
 ├── packages.txt
 ├── README.md
 ├── snaps.txt
@@ -21,7 +23,7 @@ Fail-safe, **continue-on-error** bootstrap for Ubuntu. It installs base tooling,
     ├── 160-vscode-extensions-install.sh
     ├── 170-safebox.sh
     ├── 180-move-files-to-private.sh
-    ├── 190-install-zsh.sh
+    ├── 190-zsh.sh
     ├── 200-docker.sh
     └── template.sh.sample
 ```
@@ -111,6 +113,7 @@ chmod +x installer.sh
 8. **Bulk package installs (optional)**
 
    * **APT** from `packages.txt` (per line, `#` and blank lines ignored)
+   * **Offline .deb packages** from `offline-packages/` (installs all `*.deb` with `dpkg -i`, then attempts `apt-get -f install`)
    * **Snaps** from `snaps.txt` (format: `name [flags]`, e.g., `code --classic`)
    * **Flatpaks** from `flatpaks.txt` (app IDs; adds Flathub if needed)
 
@@ -184,6 +187,15 @@ spotify
 org.mozilla.firefox
 com.visualstudio.code
 ```
+
+### `offline-packages/` (Offline .deb packages)
+
+Put your offline `.deb` files into `offline-packages/`.
+
+- The installer will scan the directory for `*.deb` files.
+- Files are processed in lexical (sorted) order; if ordering matters, prefix with numbers like `01-`, `02-`.
+- Each file is installed via `sudo dpkg -i <file>`.
+- After the batch, the installer attempts to fix missing dependencies with `sudo apt-get -f install -y`.
 
 ### `gnome.dconf` (GNOME settings dump)
 

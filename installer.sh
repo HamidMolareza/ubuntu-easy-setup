@@ -181,6 +181,7 @@ APT_LIST="${ROOT_DIR}/packages.txt"
 SNAPS_LIST="${ROOT_DIR}/snaps.txt"
 FLATPAKS_LIST="${ROOT_DIR}/flatpaks.txt"
 TASKS_DIR="${ROOT_DIR}/stacks.d"
+OFFLINE_PKG_DIR="${ROOT_DIR}/offline-packages"
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -251,6 +252,28 @@ if [[ -f "$APT_LIST" ]]; then
   fi
 else
   warn "No ${APT_LIST} found. Skipping apt bulk install."
+fi
+
+#----------------------------- offline .deb packages --------------------------#
+if [[ -d "$OFFLINE_PKG_DIR" ]]; then
+  mapfile -t __DEBS < <(find "$OFFLINE_PKG_DIR" -maxdepth 1 -type f -name "*.deb" | sort)
+  if (( ${#__DEBS[@]} > 0 )); then
+    if confirm "Install offline .deb packages from ${OFFLINE_PKG_DIR}?"; then
+      echo "==> Installing offline .deb packages from ${OFFLINE_PKG_DIR}"
+      for deb in "${__DEBS[@]}"; do
+        base="$(basename "$deb")"
+        attempt_item "dpkg install ${base}" sudo dpkg -i "$deb"
+      done
+      # Attempt to resolve any missing dependencies after batch install
+      attempt "fix missing dependencies (apt-get -f install)" sudo apt-get -f install -y
+    else
+      warn "User skipped offline .deb packages section"
+    fi
+  else
+    ok "No .deb packages found in ${OFFLINE_PKG_DIR}"
+  fi
+else
+  ok "Offline package directory not found (${OFFLINE_PKG_DIR}); skipping"
 fi
 
 #----------------------------- snaps.txt (per item) ---------------------------#
