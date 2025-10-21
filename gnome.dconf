@@ -6,6 +6,9 @@ enable-hot-corners=false
 gtk-theme='Yaru-dark'
 icon-theme='Yaru'
 
+[org/gnome/TextEditor]
+style-variant='dark'
+
 [settings-daemon/plugins/color]
 night-light-enabled=true
 night-light-temperature=uint32 4552
@@ -20,12 +23,10 @@ sleep-inactive-ac-timeout=1800
 sleep-inactive-ac-type='suspend'
 
 [org/gnome/desktop/input-sources]
-# Add input sources (examples: US + Dutch; adjust to your needs)
-# For XKB layouts use ('xkb', '<layout>' or '<layout>+<variant>')
-# For IBus engines use ('ibus', '<engine-name>')
-sources=[('xkb', 'us'), ('xkb', 'nl')]
-# Input source switching → “Individually for each window”
+mru-sources=[('xkb', 'ir'), ('xkb', 'us')]
 per-window=true
+sources=[('xkb', 'us'), ('xkb', 'ir')]
+xkb-options=@as []
 
 [shell/app-switcher]
 current-workspace-only=true
@@ -52,3 +53,6 @@ old-files-age=30
 check-x11wayland=true
 icon-size='small'
 show-home=false
+
+[system/proxy]
+mode='none'
