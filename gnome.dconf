@@ -7,7 +7,12 @@ gtk-theme='Yaru-dark'
 icon-theme='Yaru'
 
 [org/gnome/TextEditor]
+highlight-current-line=true
+restore-session=false
+show-grid=false
+show-map=false
 style-variant='dark'
+use-system-font=true
 
 [settings-daemon/plugins/color]
 night-light-enabled=true
