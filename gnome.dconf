@@ -38,6 +38,7 @@ extend-height=false
 isolate-monitors=true
 isolate-workspaces=true
 multi-monitor=true
+show-trash=false
 
 [org/gnome/desktop/privacy]
 # File History duration (days)
