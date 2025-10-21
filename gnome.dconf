@@ -10,9 +10,22 @@ icon-theme='Yaru'
 night-light-enabled=true
 night-light-temperature=uint32 4552
 
+[org/gnome/mutter]
+# Multitasking → “Workspaces on all displays”
+# false = on all displays, true = only on primary
+workspaces-only-on-primary=false
+
 [settings-daemon/plugins/power]
 sleep-inactive-ac-timeout=1800
 sleep-inactive-ac-type='suspend'
+
+[org/gnome/desktop/input-sources]
+# Add input sources (examples: US + Dutch; adjust to your needs)
+# For XKB layouts use ('xkb', '<layout>' or '<layout>+<variant>')
+# For IBus engines use ('ibus', '<engine-name>')
+sources=[('xkb', 'us'), ('xkb', 'nl')]
+# Input source switching → “Individually for each window”
+per-window=true
 
 [shell/app-switcher]
 current-workspace-only=true
@@ -25,6 +38,14 @@ extend-height=false
 isolate-monitors=true
 isolate-workspaces=true
 multi-monitor=true
+
+[org/gnome/desktop/privacy]
+# File History duration (days)
+recent-files-max-age=30
+# Automatically delete trash and temporary files (after old-files-age days)
+remove-old-trash-files=true
+remove-old-temp-files=true
+old-files-age=30
 
 [shell/extensions/ding]
 check-x11wayland=true
