@@ -30,10 +30,13 @@ echo \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
 
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo systemctl status docker
+sudo systemctl start docker
+
 # Fix permission denied issue:
+newgrp docker
 sudo usermod -aG docker "$USER"
-sudo chown root:docker /var/run/docker.sock
-sudo service docker restart
 
 # Arvan docker registry
 sudo bash -c 'cat > /etc/docker/daemon.json <<EOF
