@@ -1,9 +1,9 @@
-# Browsers & media
-#chromium
+# --- Browsers & media ---
+# chromium
 
-# Productivity & dev tools
+# --- Productivity & dev tools ---
 postman
 joplin-desktop
 telegram-desktop
 code --classic
-#stretchly
+# stretchly

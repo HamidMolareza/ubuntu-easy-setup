@@ -1,2 +1,2 @@
-# Shell extensions
+# --- Shell extensions ---
 com.mattjakeman.ExtensionManager
