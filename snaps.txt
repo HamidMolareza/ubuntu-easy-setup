@@ -5,4 +5,5 @@
 postman
 joplin-desktop
 telegram-desktop
+code --classic
 #stretchly
