@@ -3,3 +3,6 @@
 
 offline-packages/*
 !offline-packages/README.md
+
+*.env
+!*.env.sample

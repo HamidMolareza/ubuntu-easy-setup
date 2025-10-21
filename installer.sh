@@ -209,7 +209,21 @@ export DEBIAN_FRONTEND=noninteractive
 
 #----------------------------- load config ------------------------------------#
 # shellcheck source=/dev/null
-[[ -f "$CONFIG_FILE" ]] && source "$CONFIG_FILE"
+if [[ -f "$CONFIG_FILE" && -r "$CONFIG_FILE" ]]; then
+  # shellcheck source=/dev/null
+  source "$CONFIG_FILE"
+else
+  sample="${ROOT_DIR}/config.env.sample"
+  echo "Error: config file '${CONFIG_FILE}' not found or not readable." >&2
+  if [[ -f "$sample" ]]; then
+    echo "Please create it from the example and customize it, for example:" >&2
+    echo "  cp '$sample' '$CONFIG_FILE' && ${EDITOR:-nano} '$CONFIG_FILE'" >&2
+    echo "Then re-run this installer." >&2
+  else
+    echo "No sample config found ('${sample}'). Create '${CONFIG_FILE}' with the necessary variables (TIMEZONE, LOCALE, GIT_NAME, GIT_EMAIL, etc.) and re-run." >&2
+  fi
+  exit 1
+fi
 
 # Defaults if not in config.env
 TIMEZONE="${TIMEZONE:-Asia/Tehran}"
