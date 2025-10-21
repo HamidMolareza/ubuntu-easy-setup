@@ -49,3 +49,5 @@ npm
 # timeshift              # system snapshots (in Ubuntu repos)
 # aria2                  # fast CLI downloader (package name is aria2)
 # psensor
+
+gnome-shell-extension-manager
